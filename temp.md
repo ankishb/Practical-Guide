@@ -181,3 +181,284 @@ score = rmsle_cv(model_xgb)
 print("Xgboost score: {:.4f} ({:.4f})\n".format(score.mean(), score.std()))
 score = rmsle_cv(model_lgb)
 print("LGBM score: {:.4f} ({:.4f})\n" .format(score.mean(), score.std()))
+
+
+
+
+
+
+
+
+
+## LGB use
+
+        from sklearn import model_selection, preprocessing, metrics
+        import lightgbm as lgb
+
+
+        def run_lgb(train_X, train_y, val_X, val_y, test_X):
+            params = {
+                "objective" : "regression",
+                "metric" : "rmse",
+                "num_leaves" : 30,
+                "min_child_weight" : 50,
+                "learning_rate" : 0.05,
+                "bagging_fraction" : 0.7,
+                "feature_fraction" : 0.7,
+                "bagging_frequency" : 5,
+                "bagging_seed" : 2018,
+                "verbosity" : -1
+            }
+
+            lgtrain = lgb.Dataset(train_X, label=train_y)
+            lgval = lgb.Dataset(val_X, label=val_y)
+            evals_result = {}
+            model = lgb.train(params, lgtrain, 1000, valid_sets=[lgval], early_stopping_rounds=100, verbose_eval=100, evals_result=evals_result)
+
+            pred_test_y = model.predict(test_X, num_iteration=model.best_iteration)
+            return pred_test_y, model, evals_result
+
+        train_X = train_df[cols_to_use]
+        test_X = test_df[cols_to_use]
+        train_y = train_df[target_col].values
+
+        pred_test = 0
+        kf = model_selection.KFold(n_splits=5, random_state=2018, shuffle=True)
+        for dev_index, val_index in kf.split(train_df):
+            dev_X, val_X = train_X.loc[dev_index,:], train_X.loc[val_index,:]
+            dev_y, val_y = train_y[dev_index], train_y[val_index]
+
+            pred_test_tmp, model, evals_result = run_lgb(dev_X, dev_y, val_X, val_y, test_X)
+            pred_test += pred_test_tmp
+        pred_test /= 5.
+
+
+
+        fig, ax = plt.subplots(figsize=(12,10))
+        lgb.plot_importance(model, max_num_features=50, height=0.8, ax=ax)
+        ax.grid(False)
+        plt.title("LightGBM - Feature Importance", fontsize=15)
+        plt.show()
+        
+        
+        
+        
+
+## keras model history
+        plt.figure(figsize=(12,8))
+        sns.lineplot(range(1, epochs+1), model.history['acc'], label='Train Accuracy')
+        sns.lineplot(range(1, epochs+1), model.history['val_acc'], label='Test Accuracy')
+        plt.show()
+        
+        
+        
+## Before Features engineering, always do this
+
+        let's first concatenate the train and test data in the same dataframe
+
+        ntrain = train.shape[0]
+        ntest = test.shape[0]
+        y_train = train.SalePrice.values
+        all_data = pd.concat((train, test)).reset_index(drop=True)
+        all_data.drop(['SalePrice'], axis=1, inplace=True)           # target = SalePrice
+        print("all_data size is : {}".format(all_data.shape))
+
+
+
+## Missing Data
+        ==>> It nicely find the ratio of missing element, and show in descening order
+
+        all_data_na = (all_data.isnull().sum() / len(all_data)) * 100
+        all_data_na = all_data_na.drop(all_data_na[all_data_na == 0].index).sort_values(ascending=False)[:30]
+        missing_data = pd.DataFrame({'Missing Ratio' :all_data_na})
+        missing_data.head(20)
+
+
+
+
+
+
+## Transforming some numerical variables that are really categorical
+
+        #MSSubClass=The building class
+        all_data['MSSubClass'] = all_data['MSSubClass'].apply(str)
+
+
+        #Changing OverallCond into a categorical variable
+        all_data['OverallCond'] = all_data['OverallCond'].astype(str)
+
+
+        #Year and month sold are transformed into categorical features.
+        all_data['YrSold'] = all_data['YrSold'].astype(str)
+        all_data['MoSold'] = all_data['MoSold'].astype(str)
+
+
+
+## Skewed Features
+    The Box-Cox transformation computed by boxcox1p is:
+
+    y = ((1+x)**lmbda - 1) / lmbda  if lmbda != 0
+        log(1+x)                    if lmbda == 0
+
+
+# Skewed features FiNDING
+
+        numeric_feats = all_data.dtypes[all_data.dtypes != "object"].index
+
+        # Check the skew of all numerical features
+        skewed_feats = all_data[numeric_feats].apply(lambda x: skew(x.dropna())).sort_values(ascending=False)
+        print("\nSkew in numerical features: \n")
+        skewness = pd.DataFrame({'Skew' :skewed_feats})
+        skewness.head(10)
+
+
+# SKEWED FEATURE HANDLING
+
+        skewness = skewness[abs(skewness) > 0.75]
+        print("There are {} skewed numerical features to Box Cox transform".format(skewness.shape[0]))
+
+        from scipy.special import boxcox1p
+        skewed_features = skewness.index
+        lam = 0.15
+        for feat in skewed_features:
+            #all_data[feat] += 1
+            all_data[feat] = boxcox1p(all_data[feat], lam)
+
+        #all_data[skewed_features] = np.log1p(all_data[skewed_features])
+
+
+
+## pd.dummy_variable
+    Convert categorical variable into dummy/indicator variables
+    
+        all_data = pd.get_dummies(all_data)
+        
+        >>> pd.get_dummies(df, prefix=['col1', 'col2'])
+        
+        >>> df = pd.DataFrame({'A': ['a', 'b', 'a'], 'B': ['b', 'a', 'c'],
+                    'C': [1, 2, 3]})
+
+            C  col1_a  col1_b  col2_a  col2_b  col2_c
+        0  1       1       0       0       1       0
+        1  2       0       1       1       0       0
+        2  3       1       0       0       0       1
+
+
+# Very Imp step:  how to do modeling in very efficient way
+
+
+        Modelling
+
+        Import librairies
+
+        from sklearn.linear_model import ElasticNet, Lasso,  BayesianRidge, LassoLarsIC
+        from sklearn.ensemble import RandomForestRegressor,  GradientBoostingRegressor
+        from sklearn.kernel_ridge import KernelRidge
+        from sklearn.pipeline import make_pipeline
+        from sklearn.preprocessing import RobustScaler
+        from sklearn.base import BaseEstimator, TransformerMixin, RegressorMixin, clone
+        from sklearn.model_selection import KFold, cross_val_score, train_test_split
+        from sklearn.metrics import mean_squared_error
+        import xgboost as xgb
+        import lightgbm as lgb
+
+        Define a cross validation strategy
+
+        We use the cross_val_score function of Sklearn. However this function has not a shuffle attribut, we add then one line of code, in order to shuffle the dataset prior to cross-validation
+
+        #Validation function
+        n_folds = 5
+
+        def rmsle_cv(model):
+            kf = KFold(n_folds, shuffle=True, random_state=42).get_n_splits(train.values)
+            rmse= np.sqrt(-cross_val_score(model, train.values, y_train, scoring="neg_mean_squared_error", cv = kf))
+            return(rmse)
+
+        Base models
+
+            LASSO Regression :
+
+        This model may be very sensitive to outliers. So we need to made it more robust on them. For that we use the sklearn's Robustscaler() method on pipeline
+
+        lasso = make_pipeline(RobustScaler(), Lasso(alpha =0.0005, random_state=1))
+
+            Elastic Net Regression :
+
+        again made robust to outliers
+
+        ENet = make_pipeline(RobustScaler(), ElasticNet(alpha=0.0005, l1_ratio=.9, random_state=3))
+
+            Kernel Ridge Regression :
+
+        KRR = KernelRidge(alpha=0.6, kernel='polynomial', degree=2, coef0=2.5)
+
+            Gradient Boosting Regression :
+
+        With huber loss that makes it robust to outliers
+
+        GBoost = GradientBoostingRegressor(n_estimators=3000, learning_rate=0.05,
+                                           max_depth=4, max_features='sqrt',
+                                           min_samples_leaf=15, min_samples_split=10, 
+                                           loss='huber', random_state =5)
+
+            XGBoost :
+
+        model_xgb = xgb.XGBRegressor(colsample_bytree=0.4603, gamma=0.0468, 
+                                     learning_rate=0.05, max_depth=3, 
+                                     min_child_weight=1.7817, n_estimators=2200,
+                                     reg_alpha=0.4640, reg_lambda=0.8571,
+                                     subsample=0.5213, silent=1,
+                                     random_state =7, nthread = -1)
+
+            LightGBM :
+
+        model_lgb = lgb.LGBMRegressor(objective='regression',num_leaves=5,
+                                      learning_rate=0.05, n_estimators=720,
+                                      max_bin = 55, bagging_fraction = 0.8,
+                                      bagging_freq = 5, feature_fraction = 0.2319,
+                                      feature_fraction_seed=9, bagging_seed=9,
+                                      min_data_in_leaf =6, min_sum_hessian_in_leaf = 11)
+
+        Base models scores
+
+        Let's see how these base models perform on the data by evaluating the cross-validation rmsle error
+
+        score = rmsle_cv(lasso)
+        print("\nLasso score: {:.4f} ({:.4f})\n".format(score.mean(), score.std()))
+
+        Lasso score: 0.1115 (0.0074)
+
+        score = rmsle_cv(ENet)
+        print("ElasticNet score: {:.4f} ({:.4f})\n".format(score.mean(), score.std()))
+
+        ElasticNet score: 0.1116 (0.0074)
+
+        score = rmsle_cv(KRR)
+        print("Kernel Ridge score: {:.4f} ({:.4f})\n".format(score.mean(), score.std()))
+
+        Kernel Ridge score: 0.1153 (0.0075)
+
+        score = rmsle_cv(GBoost)
+        print("Gradient Boosting score: {:.4f} ({:.4f})\n".format(score.mean(), score.std()))
+
+        Gradient Boosting score: 0.1177 (0.0080)
+
+        score = rmsle_cv(model_xgb)
+        print("Xgboost score: {:.4f} ({:.4f})\n".format(score.mean(), score.std()))
+
+        Xgboost score: 0.1161 (0.0079)
+
+        score = rmsle_cv(model_lgb)
+        print("LGBM score: {:.4f} ({:.4f})\n" .format(score.mean(), score.std()))
+
+        LGBM score: 0.1157 (0.0067
+
+
+
+
+
+# https://www.kaggle.com/serigne/stacked-regressions-top-4-on-leaderboard  ===>> StackingAveragingModel to introduce Meta-Model
+
+
+
+
