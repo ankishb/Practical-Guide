@@ -181,3 +181,25 @@ score = rmsle_cv(model_xgb)
 print("Xgboost score: {:.4f} ({:.4f})\n".format(score.mean(), score.std()))
 score = rmsle_cv(model_lgb)
 print("LGBM score: {:.4f} ({:.4f})\n" .format(score.mean(), score.std()))
+
+
+
+
+
+#tuning hyper parameter of a base model
+#we take Kernel Ridge as the base model, then use grid search to find the best hyper parameters
+from sklearn.kernel_ridge import KernelRidge
+from sklearn.model_selection import GridSearchCV
+parameters = {'alpha':[0.5,0.6,0.7,0.8,0.9,1],
+              'kernel':('linear', 'rbf','polynomial'), 
+              'degree':[1,2,3],
+              'coef0':[1,1.5,2,2.5]}
+KRR = KernelRidge()
+grid_search = GridSearchCV(KRR, parameters, cv=5, scoring="neg_mean_squared_error")
+grid_search.fit( train.values, y_train )  
+grid_search.best_params_, grid_search.best_score_  
+#best params: {'alpha': 1, 'coef0': 2.5, 'degree': 2, 'kernel': 'polynomial'}
+
+({'alpha': 1, 'coef0': 2.5, 'degree': 2, 'kernel': 'polynomial'},
+ -0.013249859388407916)
+
