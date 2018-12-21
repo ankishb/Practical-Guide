@@ -500,3 +500,89 @@ ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10,
     X_train, X_test, y_train, y_test = train_test_split(df.col1,df.target,
                                                         stratify=df.target, 
                                                         test_size=0.2)     
+
+
+
+
+
+## Bi-directional LSTM  ==>> using Keyword
+ 
+    def get_lstm_model(n_timesteps, backwards):
+      model = Sequential()
+      model.add(LSTM(20, input_shape=(n_timesteps, 1), return_sequences=True, go_backwards=backwards))
+      model.add(TimeDistributed(Dense(1, activation='sigmoid')))
+      model.compile(loss='binary_crossentropy', optimizer='adam')
+      return model
+
+    def get_bi_lstm_model(n_timesteps, mode):
+      model = Sequential()
+      model.add(Bidirectional(LSTM(20, return_sequences=True), input_shape=(n_timesteps, 1), merge_mode=mode))
+      model.add(TimeDistributed(Dense(1, activation='sigmoid')))
+      model.compile(loss='binary_crossentropy', optimizer='adam')
+      return model
+
+    def train_model(model, n_timesteps):
+      loss = list()
+      for _ in range(250):
+        # generate new random sequence
+        X,y = get_sequence(n_timesteps)
+        # fit model for one epoch on this sequence
+        hist = model.fit(X, y, epochs=1, batch_size=1, verbose=0)
+        loss.append(hist.history['loss'][0])
+      return loss
+
+
+    n_timesteps = 10
+    results = DataFrame()
+    # lstm forwards
+    model = get_lstm_model(n_timesteps, False)
+    results['lstm_forw'] = train_model(model, n_timesteps)
+    # lstm backwards
+    model = get_lstm_model(n_timesteps, True)
+    results['lstm_back'] = train_model(model, n_timesteps)
+    # bidirectional concat
+    model = get_bi_lstm_model(n_timesteps, 'concat')
+    results['bilstm_con'] = train_model(model, n_timesteps)
+    # line plot of results
+    results.plot()
+    pyplot.show()
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+## Bidirectional(layer, merge_mode='concat'):
+    
+    
+    """Bidirectional wrapper for RNNs.
+    # Arguments
+        layer: `Recurrent` instance.
+        merge_mode: Mode by which outputs of the
+            forward and backward RNNs will be combined.
+            One of {'sum', 'mul', 'concat', 'ave', None}.
+            If None, the outputs will not be combined,
+            they will be returned as a list.
+    # Raises
+        ValueError: In case of invalid `merge_mode` argument.
+    # Examples
+    ```python
+        model = Sequential()
+        model.add(Bidirectional(LSTM(10, return_sequences=True),
+                                input_shape=(5, 10)))
+        model.add(Bidirectional(LSTM(10)))
+        model.add(Dense(5))
+        model.add(Activation('softmax'))
+        model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
+    ```
+    """
+
+    
+    
+    
+    
