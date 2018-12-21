@@ -426,5 +426,77 @@ ReduceLROnPlateau(monitor='val_loss', factor=0.1, patience=10,
         
         
         
+## Custorm Training        
+
+    from keras.callbacks import EarlyStopping, ModelCheckpoint
+    earlystopper = EarlyStopping(patience=25, verbose=1)
+    checkpointer = ModelCheckpoint('recsys.h5', verbose=1, save_best_only=False, save_weights_only=False, mode='auto', period=1)
+
+    rec_sys.compile(optimizer='adam', loss = 'categorical_crossentropy', metrics = ['mae','accuracy'])
+
+
+    def rec_sys_data(dataset=data, batch_size=batch):
+        while True:
+            users, problems, labels, _, _, _ = generate_dataset(dataset=data, batch_size=batch_size)
+
+            yield [users, problems], labels
+
+
+    valid_users, valid_problems, valid_labels, _, _, _ = generate_dataset(dataset=data, batch_size=4)
+
+
+    # # we want a constant validation group to have a frame of reference for model performance
+    # valid_a, valid_b, valid_sim = gen_random_batch(count_list, all_dir, 32)
+    batch=4
+    loss_history = rec_sys.fit_generator(rec_sys_data(dataset=data, batch_size=batch), 
+                                    steps_per_epoch = 100,#500,
+                                    validation_data=([valid_users, valid_problems], valid_labels),
+                                    epochs = 10,
+                                    verbose = True,
+                                    callbacks=[earlystopper,checkpointer])# make a generator out of the data
+
+
+
+
+
+
+
+
+## Stratified Sampling with Keras ==>> Idea is to take one Fold and reset the model and train it again
+
+    from sklearn.model_selection import StratifiedKFold
+
+    # Instantiate the cross validator
+    skf = StratifiedKFold(n_splits=kfold_splits, shuffle=True)
+
+    # Loop through the indices the split() method returns
+    for index, (train_indices, val_indices) in enumerate(skf.split(X, y)):
+        print "Training on fold " + str(index+1) + "/10..."
+
+        # Generate batches from indices
+        xtrain, xval = X[train_indices], X[val_indices]
+        ytrain, yval = y[train_indices], y[val_indices]
+
+        # Clear model, and create it
+        model = None
+        model = create_model()
+
+        # Debug message I guess
+        # print "Training new iteration on " + str(xtrain.shape[0]) + " training samples, " + str(xval.shape[0]) + " validation samples, this may be a while..."
+
+        history = train_model(model, xtrain, ytrain, xval, yval)
+        accuracy_history = history.history['acc']
+        val_accuracy_history = history.history['val_acc']
+        print "Last training accuracy: " + str(accuracy_history[-1]) + ", last validation accuracy: " + str(val_accuracy_history[-1])
         
         
+        
+        
+        
+        
+        
+## stratify sampling or splitting       
+    from sklearn.model_selection import train_test_split
+    X_train, X_test, y_train, y_test = train_test_split(df.col1,df.target,
+                                                        stratify=df.target, 
+                                                        test_size=0.2)     
