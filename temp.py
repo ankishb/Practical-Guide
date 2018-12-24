@@ -46,7 +46,7 @@
 
     This is a two-sided test for the null hypothesis that 2 independent samples are drawn from the same continuous distribution.
 
-    Returns:    
+    Returns:	
         D : KS statistic
         p-value : wo-tailed p-value
     """
