@@ -65,11 +65,11 @@ ModelCheckpoint((filepath,
 ## ReduceLROnPlateau
 
     # Example
-    ```python
-    reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2,
-                                  patience=5, min_lr=0.001)
-    model.fit(X_train, Y_train, callbacks=[reduce_lr])
-    ```
+```python
+reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2,
+                              patience=5, min_lr=0.001)
+model.fit(X_train, Y_train, callbacks=[reduce_lr])
+```
 
     ReduceLROnPlateau(monitor='val_loss', 
                      factor=0.1, 
@@ -116,24 +116,24 @@ ModelCheckpoint((filepath,
 
     For simplicity, lets say you know the weights you need for each class and can pass it as a dictionary. In my example I have my y_train as a one hot encoded vector. I'm using that fact to reverse engineer which class each row is pointing to and adding a weight for it. You essentially need to pass an array of weights mapping to each label (so the same length as your training data) when you fit the model.
 
-    ```python
+```python
 
-    **Test this for an example, if it works fine**
-    class_weight_dictionary = {'0':0.3, '1':0.7}
+**Test this for an example, if it works fine**
+class_weight_dictionary = {'0':0.3, '1':0.7}
 
-    def generate_sample_weights(y_train, class_weight_dictionary): 
-        sample_weights = [class_weight_dictionary[np.where(one_hot_row==1)[0][0]] for one_hot_row in y_train]
-        return np.asarray(sample_weights)
+def generate_sample_weights(y_train, class_weight_dictionary): 
+    sample_weights = [class_weight_dictionary[np.where(one_hot_row==1)[0][0]] for one_hot_row in y_train]
+    return np.asarray(sample_weights)
 
-    model.fit(x=X_train, 
-        y=y_train, 
-        batch_size = 64,
-        validation_data=(X_val, y_val),
-        shuffle=True,
-        epochs=20,
-        sample_weight = generate_sample_weights(y_train, class_weights_dict)
-    )
-    ```
+model.fit(x=X_train, 
+    y=y_train, 
+    batch_size = 64,
+    validation_data=(X_val, y_val),
+    shuffle=True,
+    epochs=20,
+    sample_weight = generate_sample_weights(y_train, class_weights_dict)
+)
+```
 
         """
         # Arguments
@@ -251,18 +251,18 @@ ModelCheckpoint((filepath,
         # Returns
             `History.history` attribute has a record of training loss values and metrics values
        # Example
-        ```python
-        def generate_arrays_from_file(path):
-            while True:
-                with open(path) as f:
-                    for line in f:
-                        # create numpy arrays of input data
-                        # and labels, from each line in the file
-                        x1, x2, y = process_line(line)
-                        yield ({'input_1': x1, 'input_2': x2}, {'output': y})
-        model.fit_generator(generate_arrays_from_file('/my_file.txt'),
-                            steps_per_epoch=10000, epochs=10)
-        ```
+```python
+def generate_arrays_from_file(path):
+    while True:
+        with open(path) as f:
+            for line in f:
+                # create numpy arrays of input data
+                # and labels, from each line in the file
+                x1, x2, y = process_line(line)
+                yield ({'input_1': x1, 'input_2': x2}, {'output': y})
+model.fit_generator(generate_arrays_from_file('/my_file.txt'),
+                    steps_per_epoch=10000, epochs=10)
+```
         """
         
         
@@ -271,35 +271,35 @@ ModelCheckpoint((filepath,
         
 ## Custorm Training        
 
-    ```python
-    from keras.callbacks import EarlyStopping, ModelCheckpoint
-    earlystopper = EarlyStopping(patience=2, verbose=1)
-    checkpointer = ModelCheckpoint('model.h5', verbose=1, save_best_only=False, save_weights_only=False, mode='auto', period=1)
+```python
+from keras.callbacks import EarlyStopping, ModelCheckpoint
+earlystopper = EarlyStopping(patience=2, verbose=1)
+checkpointer = ModelCheckpoint('model.h5', verbose=1, save_best_only=False, save_weights_only=False, mode='auto', period=1)
 
-    model.compile(optimizer='adam', loss = 'categorical_crossentropy', metrics = ['mae','accuracy'])
-
-
-    def yield_data(dataset=data, batch_size=batch):
-        while True:
-            input1, input2, labels = generate_dataset(dataset=data, batch_size=batch_size)
-
-            yield [input1, input2], labels
+model.compile(optimizer='adam', loss = 'categorical_crossentropy', metrics = ['mae','accuracy'])
 
 
-    valid_users, valid_problems, valid_labels = generate_dataset(dataset=data, batch_size=4)
+def yield_data(dataset=data, batch_size=batch):
+    while True:
+        input1, input2, labels = generate_dataset(dataset=data, batch_size=batch_size)
+
+        yield [input1, input2], labels
 
 
-    # # we want a constant validation group to have a frame of reference for model performance
-    # valid_a, valid_b, valid_sim = gen_random_batch(count_list, all_dir, 32)
-    batch=4
-    loss_history = rec_sys.fit_generator(yield_data(dataset=data, batch_size=batch), 
-                                    steps_per_epoch = 100,
-                                    validation_data=([valid_users, valid_problems], valid_labels),
-                                    epochs = 10,
-                                    verbose = True,
-                                    callbacks=[earlystopper,checkpointer])
+valid_users, valid_problems, valid_labels = generate_dataset(dataset=data, batch_size=4)
 
-    ```
+
+# # we want a constant validation group to have a frame of reference for model performance
+# valid_a, valid_b, valid_sim = gen_random_batch(count_list, all_dir, 32)
+batch=4
+loss_history = rec_sys.fit_generator(yield_data(dataset=data, batch_size=batch), 
+                                steps_per_epoch = 100,
+                                validation_data=([valid_users, valid_problems], valid_labels),
+                                epochs = 10,
+                                verbose = True,
+                                callbacks=[earlystopper,checkpointer])
+
+```
 
 
 
